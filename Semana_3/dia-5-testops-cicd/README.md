@@ -1,21 +1,51 @@
-# Día 5: TestOps y CI/CD
+# Dia 5: TestOps y CI/CD
 
-Este dia toma el ejercicio del Dia 4 y lo lleva a automatizacion en pipeline.
+Este dia toma el ejercicio del Dia 4 y lo lleva a automatizacion en pipeline con GitHub Actions.
 
-Incluye:
-- Pipeline CI/CD con GitHub Actions
-- Ejecución automática de pruebas E2E
-- Integración con Allure TestOps (opcional)
+## Que incluye
 
-## ¿Qué debes hacer?
+- Pipeline QA en `.github/workflows/qa-pipeline.yml`.
+- Ejecucion automatica de la app asincrona del Dia 4.
+- Kafka levantado con Docker Compose.
+- Backend y worker ejecutados en segundo plano.
+- Build del frontend React/Vite.
+- Pruebas Playwright.
+- Artifacts con reporte Playwright y logs de servicios.
+- Integracion opcional con Allure TestOps mediante secrets.
 
-1. Sube tu código a un repositorio GitHub.
-2. El pipeline (`.github/workflows/qa-pipeline.yml`) se ejecuta automáticamente al hacer push.
-3. Puedes ver los resultados en la pestaña Actions de GitHub.
+## Como se ejecuta
 
-No necesitas modificar nada para que funcione. Solo sube tu código y observa el pipeline.
+El workflow se dispara automaticamente cuando haces push o pull request hacia `main` o `master`.
+
+Tambien se puede ejecutar manualmente:
+
+1. Abre el repositorio en GitHub.
+2. Ve a la pestana `Actions`.
+3. Selecciona `LiteTk QA Pipeline`.
+4. Haz clic en `Run workflow`.
+
+## Importante
+
+GitHub Actions solo detecta workflows ubicados en la raiz del repositorio:
+
+```text
+.github/workflows/qa-pipeline.yml
+```
+
+La carpeta `.github` que queda dentro de `Semana_3/dia-5-testops-cicd/` sirve como material de clase, pero no dispara pipelines por si sola.
+
+## Allure TestOps opcional
+
+Si quieres enviar resultados a Allure TestOps, configura estos secrets en GitHub:
+
+- `ALLURE_ENDPOINT`
+- `ALLURE_TOKEN`
+- `ALLURE_PROJECT_ID`
+
+Si no existen, el pipeline ejecuta Playwright normalmente y guarda artifacts nativos de GitHub Actions.
 
 ## Objetivo de aprendizaje
 
 - Entender como pasar de ejecucion local a ejecucion automatizada.
-- Revisar evidencias de calidad desde CI para tomar decisiones de release.
+- Ver evidencias de calidad desde CI para tomar decisiones de release.
+- Practicar TestOps con reportes, logs y ejecuciones reproducibles.
