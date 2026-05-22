@@ -58,7 +58,21 @@ Para ver Allure Report:
 1. Entra al run de GitHub Actions.
 2. Descarga el artifact `allure-report`.
 3. Descomprime el archivo.
-4. Abre `index.html`.
+4. Sirve la carpeta por HTTP desde la raiz del repo:
+
+```powershell
+node scripts/serve-report.js allure-report 5050
+```
+
+5. Abre `http://localhost:5050`.
+
+Si prefieres abrirlo desde la carpeta descomprimida del artifact, tambien puedes ejecutar:
+
+```powershell
+node serve-report.js . 5050
+```
+
+No abras `index.html` directamente con doble clic. Allure carga archivos JSON con `fetch`; si se abre como `file://`, el navegador puede mostrar tarjetas `500 Failed to fetch`.
 
 ## Objetivo de aprendizaje
 

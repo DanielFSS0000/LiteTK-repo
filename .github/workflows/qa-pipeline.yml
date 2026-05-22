@@ -104,6 +104,21 @@ jobs:
         run: |
           if [[ -d allure-results ]]; then
             npm run report:allure
+            cp ../../../scripts/serve-report.js allure-report/serve-report.js
+            cat > allure-report/OPEN_REPORT.txt <<'EOF'
+          Allure Report must be served over HTTP.
+
+          From the repository root, run:
+            node scripts/serve-report.js allure-report 5050
+
+          Or from inside this unzipped artifact folder, run:
+            node serve-report.js . 5050
+
+          Then open:
+            http://localhost:5050
+
+          Do not open index.html directly with file://, because browsers can block Allure's JSON fetch requests.
+          EOF
           else
             echo "No allure-results directory found. Skipping Allure HTML generation."
           fi
