@@ -53,6 +53,14 @@ Cada ejecucion del pipeline publica estos artifacts:
 - `allure-results`: resultados crudos de Allure para reprocesar o enviar a otra herramienta.
 - `service-logs`: logs del backend y worker.
 
+Ademas, cuando el pipeline corre en `main`, publica el ultimo `allure-report` en GitHub Pages para abrirlo sin descargar artifacts:
+
+```text
+https://danielfss0000.github.io/LiteTK-repo/
+```
+
+Si GitHub Pages no esta activo todavia, ve a `Settings > Pages` y selecciona `GitHub Actions` como fuente de publicacion.
+
 Para ver Allure Report:
 
 1. Entra al run de GitHub Actions.
