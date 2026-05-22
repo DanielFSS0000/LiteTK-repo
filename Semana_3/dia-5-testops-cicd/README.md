@@ -10,7 +10,8 @@ Este dia toma el ejercicio del Dia 4 y lo lleva a automatizacion en pipeline con
 - Backend y worker ejecutados en segundo plano.
 - Build del frontend React/Vite.
 - Pruebas Playwright.
-- Artifacts con reporte Playwright, reporte Allure local, resultados Allure crudos y logs de servicios.
+- Publicacion del ultimo Allure Report en GitHub Pages.
+- Artifacts con reporte Playwright y logs de servicios.
 - Integracion opcional con Allure TestOps mediante secrets.
 
 ## Como se ejecuta
@@ -49,38 +50,15 @@ Si no existen, el pipeline ejecuta Playwright normalmente y guarda artifacts nat
 Cada ejecucion del pipeline publica estos artifacts:
 
 - `playwright-report`: HTML nativo de Playwright.
-- `allure-report`: HTML generado con Allure Report local.
-- `allure-results`: resultados crudos de Allure para reprocesar o enviar a otra herramienta.
 - `service-logs`: logs del backend y worker.
 
-Ademas, cuando el pipeline corre en `main`, publica el ultimo `allure-report` en GitHub Pages para abrirlo sin descargar artifacts:
+Cuando el pipeline corre en `main`, publica el ultimo Allure Report en GitHub Pages para abrirlo sin descargar artifacts:
 
 ```text
 https://danielfss0000.github.io/LiteTK-repo/
 ```
 
 Si GitHub Pages no esta activo todavia, el job de publicacion puede fallar aunque las pruebas pasen. Activalo una vez en `Settings > Pages` seleccionando `GitHub Actions` como fuente de publicacion; despues vuelve a ejecutar el workflow.
-
-Para ver Allure Report:
-
-1. Entra al run de GitHub Actions.
-2. Descarga el artifact `allure-report`.
-3. Descomprime el archivo.
-4. Sirve la carpeta por HTTP desde la raiz del repo:
-
-```powershell
-node scripts/serve-report.js allure-report 5050
-```
-
-5. Abre `http://localhost:5050`.
-
-Si prefieres abrirlo desde la carpeta descomprimida del artifact, tambien puedes ejecutar:
-
-```powershell
-node serve-report.js . 5050
-```
-
-No abras `index.html` directamente con doble clic. Allure carga archivos JSON con `fetch`; si se abre como `file://`, el navegador puede mostrar tarjetas `500 Failed to fetch`.
 
 ## Objetivo de aprendizaje
 

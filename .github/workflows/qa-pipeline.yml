@@ -106,21 +106,6 @@ jobs:
         run: |
           if [[ -d allure-results ]]; then
             npm run report:allure
-            cp ../../../scripts/serve-report.js allure-report/serve-report.js
-            cat > allure-report/OPEN_REPORT.txt <<'EOF'
-          Allure Report must be served over HTTP.
-
-          From the repository root, run:
-            node scripts/serve-report.js allure-report 5050
-
-          Or from inside this unzipped artifact folder, run:
-            node serve-report.js . 5050
-
-          Then open:
-            http://localhost:5050
-
-          Do not open index.html directly with file://, because browsers can block Allure's JSON fetch requests.
-          EOF
           else
             echo "No allure-results directory found. Skipping Allure HTML generation."
           fi
@@ -133,21 +118,11 @@ jobs:
           path: Semana_3/dia-4-kafka-docker/tests/playwright-report
           if-no-files-found: ignore
 
-      - name: Upload Allure report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload Allure report for GitHub Pages
+        if: ${{ always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        uses: actions/upload-pages-artifact@v4
         with:
-          name: allure-report
           path: Semana_3/dia-4-kafka-docker/tests/allure-report
-          if-no-files-found: ignore
-
-      - name: Upload Allure raw results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: allure-results
-          path: Semana_3/dia-4-kafka-docker/tests/allure-results
-          if-no-files-found: ignore
 
       - name: Upload service logs
         if: always()
@@ -177,19 +152,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - name: Download Allure report artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: allure-report
-          path: allure-report
-
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
-
-      - name: Upload Allure report for GitHub Pages
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: allure-report
 
       - name: Deploy Allure Report
         id: deployment
