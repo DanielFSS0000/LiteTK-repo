@@ -9,9 +9,13 @@
     "test:api-pool": "playwright test -g \"TestPlan API\"",
     "test:distribucion": "playwright test -g \"TestPlan Distribución\"",
     "report": "playwright show-report",
+    "report:allure": "allure generate allure-results --clean -o allure-report",
+    "open:allure": "allure open allure-report",
     "install:browsers": "playwright install"
   },
   "devDependencies": {
-    "@playwright/test": "^1.44.0"
+    "@playwright/test": "^1.44.0",
+    "allure-commandline": "^2.41.0",
+    "allure-playwright": "^3.9.0"
   }
 }

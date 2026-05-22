@@ -1,0 +1,11 @@
+node_modules/
+dist/
+
+playwright-report/
+allure-report/
+allure-results/
+service-logs/
+test-results/
+
+*.log
+*.pid

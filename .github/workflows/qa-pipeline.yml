@@ -98,12 +98,38 @@ jobs:
             npx playwright test
           fi
 
+      - name: Generate Allure HTML report
+        if: always()
+        working-directory: Semana_3/dia-4-kafka-docker/tests
+        run: |
+          if [[ -d allure-results ]]; then
+            npm run report:allure
+          else
+            echo "No allure-results directory found. Skipping Allure HTML generation."
+          fi
+
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: Semana_3/dia-4-kafka-docker/tests/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-report
+          path: Semana_3/dia-4-kafka-docker/tests/allure-report
+          if-no-files-found: ignore
+
+      - name: Upload Allure raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: Semana_3/dia-4-kafka-docker/tests/allure-results
           if-no-files-found: ignore
 
       - name: Upload service logs

@@ -10,7 +10,7 @@ Este dia toma el ejercicio del Dia 4 y lo lleva a automatizacion en pipeline con
 - Backend y worker ejecutados en segundo plano.
 - Build del frontend React/Vite.
 - Pruebas Playwright.
-- Artifacts con reporte Playwright y logs de servicios.
+- Artifacts con reporte Playwright, reporte Allure local, resultados Allure crudos y logs de servicios.
 - Integracion opcional con Allure TestOps mediante secrets.
 
 ## Como se ejecuta
@@ -43,6 +43,22 @@ Si quieres enviar resultados a Allure TestOps, configura estos secrets en GitHub
 - `ALLURE_PROJECT_ID`
 
 Si no existen, el pipeline ejecuta Playwright normalmente y guarda artifacts nativos de GitHub Actions.
+
+## Reportes generados
+
+Cada ejecucion del pipeline publica estos artifacts:
+
+- `playwright-report`: HTML nativo de Playwright.
+- `allure-report`: HTML generado con Allure Report local.
+- `allure-results`: resultados crudos de Allure para reprocesar o enviar a otra herramienta.
+- `service-logs`: logs del backend y worker.
+
+Para ver Allure Report:
+
+1. Entra al run de GitHub Actions.
+2. Descarga el artifact `allure-report`.
+3. Descomprime el archivo.
+4. Abre `index.html`.
 
 ## Objetivo de aprendizaje
 
