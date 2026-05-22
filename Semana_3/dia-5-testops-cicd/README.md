@@ -59,7 +59,7 @@ Ademas, cuando el pipeline corre en `main`, publica el ultimo `allure-report` en
 https://danielfss0000.github.io/LiteTK-repo/
 ```
 
-Si GitHub Pages no esta activo todavia, ve a `Settings > Pages` y selecciona `GitHub Actions` como fuente de publicacion.
+Si GitHub Pages no esta activo todavia, el job de publicacion puede fallar aunque las pruebas pasen. Activalo una vez en `Settings > Pages` seleccionando `GitHub Actions` como fuente de publicacion; despues vuelve a ejecutar el workflow.
 
 Para ver Allure Report:
 
