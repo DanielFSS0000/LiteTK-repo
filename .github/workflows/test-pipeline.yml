@@ -1,0 +1,112 @@
+name: Reto Automation Front-End LT
+
+on:
+  push:
+    branches: [main, master, automation-front-end-lt]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  registro-usuario-e2e:
+    name: Registro de usuario asincrono
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      APP_DIR: Semana_3/dia-4-kafka-docker
+      TEST_DIR: reto-testOps-automation-frontEnd
+      FRONTEND_URL: http://localhost:5173
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            Semana_3/dia-4-kafka-docker/backend/package-lock.json
+            Semana_3/dia-4-kafka-docker/frontend/package-lock.json
+            reto-testOps-automation-frontEnd/package-lock.json
+
+      - name: Start Kafka infrastructure
+        run: |
+          docker compose -f "$APP_DIR/docker-compose.yml" up -d
+          docker compose -f "$APP_DIR/docker-compose.yml" ps
+
+      - name: Install application dependencies
+        run: |
+          npm ci --prefix "$APP_DIR/backend"
+          npm ci --prefix "$APP_DIR/frontend"
+
+      - name: Install automation dependencies
+        run: |
+          npm ci --prefix "$TEST_DIR"
+          npx --prefix "$TEST_DIR" playwright install --with-deps chromium
+
+      - name: Reset lab database
+        run: |
+          printf '{\n  "transactions": {},\n  "users": {}\n}\n' > "$APP_DIR/backend/db.json"
+
+      - name: Start Lite Bank services
+        run: |
+          npm --prefix "$APP_DIR/backend" run start-server > "$APP_DIR/backend/server.log" 2>&1 &
+          npm --prefix "$APP_DIR/backend" run start-worker > "$APP_DIR/backend/worker.log" 2>&1 &
+          npm --prefix "$APP_DIR/frontend" run dev -- --host 127.0.0.1 > "$APP_DIR/frontend/frontend.log" 2>&1 &
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/health > /dev/null; then
+              echo "Backend healthcheck OK"
+              break
+            fi
+            echo "Waiting for backend... attempt $attempt"
+            sleep 2
+          done
+
+          for attempt in {1..30}; do
+            if curl --fail --silent "$FRONTEND_URL" > /dev/null; then
+              echo "Frontend healthcheck OK"
+              exit 0
+            fi
+            echo "Waiting for frontend... attempt $attempt"
+            sleep 2
+          done
+
+          echo "Lite Bank services did not become ready"
+          cat "$APP_DIR/backend/server.log"
+          cat "$APP_DIR/backend/worker.log"
+          cat "$APP_DIR/frontend/frontend.log"
+          exit 1
+
+      - name: Run Playwright front-end challenge
+        working-directory: reto-testOps-automation-frontEnd
+        run: npm test
+
+      - name: Upload Playwright HTML report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-reto-front-end
+          path: reto-testOps-automation-frontEnd/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload service logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lite-bank-service-logs
+          path: |
+            Semana_3/dia-4-kafka-docker/backend/server.log
+            Semana_3/dia-4-kafka-docker/backend/worker.log
+            Semana_3/dia-4-kafka-docker/frontend/frontend.log
+          if-no-files-found: ignore
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose -f "$APP_DIR/docker-compose.yml" down

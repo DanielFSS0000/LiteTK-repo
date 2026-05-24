@@ -17,6 +17,32 @@ function randomBetween(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function readDb() {
+  let lastError;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const rawDb = fs.readFileSync(DB_PATH, 'utf-8');
+      const db = JSON.parse(rawDb);
+      db.transactions = db.transactions || {};
+      db.users = db.users || {};
+      return db;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError;
+}
+
+function writeDb(db) {
+  db.transactions = db.transactions || {};
+  db.users = db.users || {};
+  const tempPath = `${DB_PATH}.tmp`;
+  fs.writeFileSync(tempPath, JSON.stringify(db, null, 2));
+  fs.renameSync(tempPath, DB_PATH);
+}
+
 function resolveSimulation(simulationProfile) {
   const profile = String(simulationProfile || 'RANDOM').toUpperCase();
 
@@ -35,7 +61,6 @@ function resolveSimulation(simulationProfile) {
       };
     case 'RANDOM':
     default: {
-      // Regla de negocio: 80% casos <= 20s, 20% casos timeout 40-60s.
       const isFast = Math.random() < 0.8;
       if (isFast) {
         return {
@@ -61,14 +86,14 @@ function clampSpeedFactor(value) {
   return Math.min(1, Math.max(0.05, parsed));
 }
 
-async function subscribeWhenTopicAvailable() {
+async function subscribeWhenTopicAvailable(topic) {
   while (true) {
     try {
-      await consumer.subscribe({ topic: 'transferencias-creadas', fromBeginning: false });
+      await consumer.subscribe({ topic, fromBeginning: false });
       return;
     } catch (error) {
       if (error && (error.type === 'UNKNOWN_TOPIC_OR_PARTITION' || error.code === 3)) {
-        console.log(" Tópico aún no disponible, reintentando en 2s...");
+        console.log(` Topico ${topic} aun no disponible, reintentando en 2s...`);
         await delay(2000);
         continue;
       }
@@ -77,59 +102,100 @@ async function subscribeWhenTopicAvailable() {
   }
 }
 
+async function processTransfer(txId, eventData) {
+  const simulation = resolveSimulation(eventData.simulationProfile);
+  const speedFactor = clampSpeedFactor(eventData.speedFactor);
+  const finalDelayMs = Math.max(200, Math.floor(simulation.delayMs * speedFactor));
+
+  console.log(
+    ` Procesando ${txId} | profile=${eventData.simulationProfile || 'RANDOM'} | bucket=${simulation.bucket} | delay=${finalDelayMs}ms`
+  );
+  await delay(finalDelayMs);
+
+  const db = readDb();
+  if (!db.transactions[txId]) {
+    return;
+  }
+
+  const createdAt = Number(db.transactions[txId].createdAt || Date.now());
+  const processedAt = Date.now();
+  db.transactions[txId].status = simulation.finalStatus;
+  db.transactions[txId].workerBucket = simulation.bucket;
+  db.transactions[txId].processedAt = processedAt;
+  db.transactions[txId].responseTimeMs = processedAt - createdAt;
+  db.transactions[txId].effectiveDelayMs = finalDelayMs;
+  writeDb(db);
+
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: 'INFO',
+    service: 'bank-worker',
+    message: 'Transaccion procesada',
+    transactionId: txId,
+    status: simulation.finalStatus,
+    bucket: simulation.bucket,
+    effectiveDelayMs: finalDelayMs
+  }));
+}
+
+async function processUserRegistration(userId, eventData) {
+  const finalDelayMs = randomBetween(3000, 5000);
+
+  console.log(` Procesando registro ${userId} | delay=${finalDelayMs}ms`);
+  await delay(finalDelayMs);
+
+  const db = readDb();
+  if (!db.users[userId]) {
+    return;
+  }
+
+  const createdAt = Number(db.users[userId].createdAt || Date.now());
+  const processedAt = Date.now();
+  db.users[userId].status = 'USUARIO_CREADO_EXITOSAMENTE';
+  db.users[userId].processedAt = processedAt;
+  db.users[userId].responseTimeMs = processedAt - createdAt;
+  db.users[userId].effectiveDelayMs = finalDelayMs;
+  writeDb(db);
+
+  console.log(JSON.stringify({
+    timestamp: new Date().toISOString(),
+    level: 'INFO',
+    service: 'bank-worker',
+    message: 'Usuario creado',
+    userId,
+    email: eventData.email,
+    effectiveDelayMs: finalDelayMs
+  }));
+}
+
 async function runWorker() {
   await consumer.connect();
-  // El consumidor se suscribe al casillero específico de transferencias creadas
-  await subscribeWhenTopicAvailable();
-  console.log(" Escuchando eventos en el tópico 'transferencias-creadas'...");
+  await subscribeWhenTopicAvailable('transferencias-creadas');
+  await subscribeWhenTopicAvailable('registro-usuarios');
+  console.log(" Escuchando eventos en los topicos 'transferencias-creadas' y 'registro-usuarios'...");
 
   await consumer.run({
-    eachMessage: async ({ topic, partition, message }) => {
+    eachMessage: async ({ topic, message }) => {
       const eventData = JSON.parse(message.value.toString());
-      const txId = message.key.toString();
+      const messageId = message.key.toString();
 
-      // Registro Estructurado (Structured Logging)
       console.log(JSON.stringify({
         timestamp: new Date().toISOString(),
-        level: "INFO",
-        service: "bank-worker",
-        message: "Evento recibido de Kafka",
-        transactionId: txId,
+        level: 'INFO',
+        service: 'bank-worker',
+        message: 'Evento recibido de Kafka',
+        topic,
+        messageId,
         data: eventData
       }));
 
-      // Simulación de procesamiento asíncrono complejo (Retraso configurable, 10s por defecto)
-      const simulation = resolveSimulation(eventData.simulationProfile);
-      const speedFactor = clampSpeedFactor(eventData.speedFactor);
-      const finalDelayMs = Math.max(200, Math.floor(simulation.delayMs * speedFactor));
+      if (topic === 'transferencias-creadas') {
+        await processTransfer(messageId, eventData);
+        return;
+      }
 
-      console.log(
-        ` Procesando ${txId} | profile=${eventData.simulationProfile || 'RANDOM'} | bucket=${simulation.bucket} | delay=${finalDelayMs}ms`
-      );
-      await delay(finalDelayMs);
-
-      // Actualizar resultado final en db.json
-      const db = JSON.parse(fs.readFileSync(DB_PATH));
-      if (db.transactions[txId]) {
-        const createdAt = Number(db.transactions[txId].createdAt || Date.now());
-        const processedAt = Date.now();
-        db.transactions[txId].status = simulation.finalStatus;
-        db.transactions[txId].workerBucket = simulation.bucket;
-        db.transactions[txId].processedAt = processedAt;
-        db.transactions[txId].responseTimeMs = processedAt - createdAt;
-        db.transactions[txId].effectiveDelayMs = finalDelayMs;
-        fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
-        
-        console.log(JSON.stringify({
-          timestamp: new Date().toISOString(),
-          level: "INFO",
-          service: "bank-worker",
-          message: "Transacción procesada",
-          transactionId: txId,
-          status: simulation.finalStatus,
-          bucket: simulation.bucket,
-          effectiveDelayMs: finalDelayMs
-        }));
+      if (topic === 'registro-usuarios') {
+        await processUserRegistration(messageId, eventData);
       }
     }
   });
