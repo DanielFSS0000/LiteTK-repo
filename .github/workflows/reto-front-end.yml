@@ -135,3 +135,61 @@ jobs:
       - name: Deploy Reto 1 Allure Report
         id: deployment
         uses: actions/deploy-pages@v4
+
+  reto2-registro:
+    name: Reto 2 - Registro oficial
+    runs-on: ubuntu-latest
+
+    env:
+      APP_DIR: Automatización_Front-End/src
+      TEST_DIR: Automatización_Front-End/test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Automatización_Front-End/test/package-lock.json
+
+      - name: Start official frontend
+        run: docker compose -f "$APP_DIR/docker-compose.yml" up --build -d
+
+      - name: Wait for official frontend
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000 > /dev/null; then
+              echo "Official frontend OK"
+              exit 0
+            fi
+            echo "Waiting for official frontend... attempt $attempt"
+            sleep 2
+          done
+
+          echo "Official frontend did not become ready"
+          docker compose -f "$APP_DIR/docker-compose.yml" logs
+          exit 1
+
+      - name: Install test dependencies
+        run: |
+          npm ci --prefix "$TEST_DIR"
+          npx --prefix "$TEST_DIR" playwright install --with-deps chromium
+
+      - name: Run reto2 tests
+        working-directory: Automatización_Front-End/test
+        run: npm test
+
+      - name: Upload reto2 Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reto2-playwright-report
+          path: Automatización_Front-End/test/playwright-report
+          if-no-files-found: ignore
+
+      - name: Stop official frontend
+        if: always()
+        run: docker compose -f "$APP_DIR/docker-compose.yml" down
