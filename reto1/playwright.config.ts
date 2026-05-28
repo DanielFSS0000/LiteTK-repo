@@ -16,7 +16,8 @@ export default defineConfig({
   } : undefined,
   reporter: [
     ['list'],
-    ['html', { open: 'never', outputFolder: 'playwright-report' }]
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['allure-playwright', { outputFolder: 'allure-results' }]
   ],
   use: {
     baseURL: process.env.FRONTEND_URL || 'http://127.0.0.1:5173',

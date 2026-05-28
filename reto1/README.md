@@ -59,6 +59,12 @@ Ejecutar 3 veces seguidas:
 npm test -- --repeat-each=3
 ```
 
+Generar reporte Allure local:
+
+```powershell
+npm run report:allure
+```
+
 ## Decisiones Tecnicas
 
 - Se usa Page Object Model en `pages/TransferPage.ts`.
@@ -66,3 +72,5 @@ npm test -- --repeat-each=3
 - Se usa `workers: 1` porque el flujo depende de Kafka y un worker asincrono.
 - El test fuerza `FAST_5` con `speedFactor: 0.1` desde Playwright para evitar que
   el escenario aleatorio del backend genere flakiness.
+- El pipeline genera `allure-results`, construye `allure-report` y lo publica en
+  GitHub Pages para consultar la evidencia en linea.
