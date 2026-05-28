@@ -6,10 +6,13 @@
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "report:allure": "allure generate allure-results --clean -o allure-report"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "allure-commandline": "^2.34.1",
+    "allure-playwright": "^3.4.2",
     "typescript": "^5.0.0"
   }
 }

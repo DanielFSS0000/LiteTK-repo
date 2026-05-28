@@ -7,7 +7,8 @@ export default defineConfig({
   workers: 1,
   reporter: [
     ['list'],
-    ['html', { open: 'never', outputFolder: 'playwright-report' }]
+    ['html', { open: 'never', outputFolder: 'playwright-report' }],
+    ['allure-playwright', { outputFolder: 'allure-results' }]
   ],
   use: {
     baseURL: process.env.REGISTRO_FRONTEND_URL || 'http://localhost:3000',

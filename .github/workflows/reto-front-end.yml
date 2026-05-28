@@ -95,12 +95,6 @@ jobs:
           path: reto1/allure-report
           if-no-files-found: ignore
 
-      - name: Upload reto1 Allure report for GitHub Pages
-        if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: reto1/allure-report
-
       - name: Upload reto1 service logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -114,27 +108,6 @@ jobs:
       - name: Stop Kafka services
         if: always()
         run: docker compose -f "$APP_DIR/docker-compose.yml" down
-
-  deploy-reto1-allure-pages:
-    name: Publish Reto 1 Allure Report to GitHub Pages
-    needs: reto1-transferencias
-    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Deploy Reto 1 Allure Report
-        id: deployment
-        uses: actions/deploy-pages@v4
 
   reto2-registro:
     name: Reto 2 - Registro oficial
@@ -182,6 +155,18 @@ jobs:
         working-directory: Automatización_Front-End/test
         run: npm test
 
+      - name: Generate reto2 Allure report
+        if: always()
+        working-directory: Automatización_Front-End/test
+        run: |
+          if [ -d allure-results ]; then
+            npm run report:allure
+          else
+            echo "No allure-results directory found. Skipping Allure report generation."
+            mkdir -p allure-report
+            printf '<!doctype html><html><body><h1>No Allure results generated</h1></body></html>\n' > allure-report/index.html
+          fi
+
       - name: Upload reto2 Playwright report
         if: always()
         uses: actions/upload-artifact@v4
@@ -190,6 +175,81 @@ jobs:
           path: Automatización_Front-End/test/playwright-report
           if-no-files-found: ignore
 
+      - name: Upload reto2 Allure report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reto2-allure-report
+          path: Automatización_Front-End/test/allure-report
+          if-no-files-found: ignore
+
       - name: Stop official frontend
         if: always()
         run: docker compose -f "$APP_DIR/docker-compose.yml" down
+
+  deploy-reto-allure-pages:
+    name: Publish Reto Allure Reports to GitHub Pages
+    needs: [reto1-transferencias, reto2-registro]
+    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download reto1 Allure report
+        uses: actions/download-artifact@v4
+        with:
+          name: reto1-allure-report
+          path: pages/reto1
+
+      - name: Download reto2 Allure report
+        uses: actions/download-artifact@v4
+        with:
+          name: reto2-allure-report
+          path: pages/reto2
+
+      - name: Create reports index
+        run: |
+          cat > pages/index.html <<'HTML'
+          <!doctype html>
+          <html lang="es">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Reportes de automatizacion front-end</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 40px; color: #17202a; }
+                h1 { margin-bottom: 8px; }
+                p { max-width: 720px; line-height: 1.5; }
+                ul { padding-left: 20px; }
+                li { margin: 12px 0; }
+                a { color: #0969da; font-weight: 700; }
+              </style>
+            </head>
+            <body>
+              <h1>Reportes de automatizacion front-end</h1>
+              <p>Esta pagina agrupa los reportes Allure generados por GitHub Actions para los retos del proyecto.</p>
+              <ul>
+                <li><a href="./reto1/">Reto 1 - Transferencias con polling</a></li>
+                <li><a href="./reto2/">Reto 2 - Registro oficial</a></li>
+              </ul>
+            </body>
+          </html>
+          HTML
+
+      - name: Upload reports for GitHub Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: pages
+
+      - name: Deploy Reto Allure Reports
+        id: deployment
+        uses: actions/deploy-pages@v4
