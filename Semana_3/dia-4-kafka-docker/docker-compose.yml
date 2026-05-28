@@ -54,15 +54,7 @@ services:
           --topic transferencias-creadas \
           --partitions 1 \
           --replication-factor 1
-        /opt/kafka/bin/kafka-topics.sh \
-          --bootstrap-server kafka:29092 \
-          --create \
-          --if-not-exists \
-          --topic registro-usuarios \
-          --partitions 1 \
-          --replication-factor 1
         echo "Topic transferencias-creadas listo"
-        echo "Topic registro-usuarios listo"
         tail -f /dev/null
     restart: "no"
     networks:

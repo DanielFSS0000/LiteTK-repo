@@ -65,32 +65,6 @@ async function publishTransferMessage(messagePayload) {
   }
 }
 
-function readDb() {
-  let lastError;
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      const rawDb = fs.readFileSync(DB_PATH, 'utf-8');
-      const db = JSON.parse(rawDb);
-      db.transactions = db.transactions || {};
-      db.users = db.users || {};
-      return db;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError;
-}
-
-function writeDb(db) {
-  db.transactions = db.transactions || {};
-  db.users = db.users || {};
-  const tempPath = `${DB_PATH}.tmp`;
-  fs.writeFileSync(tempPath, JSON.stringify(db, null, 2));
-  fs.renameSync(tempPath, DB_PATH);
-}
-
 // Backend API puro: el frontend vive en /frontend (Vite/React)
 app.get('/', (req, res) => {
   res.json({
@@ -112,7 +86,7 @@ app.post('/api/transfer', async (req, res) => {
   const normalizedProfile = String(simulationProfile || 'RANDOM').toUpperCase();
 
   // Guardar estado inicial en la base de datos (db.json)
-  const db = readDb();
+  const db = JSON.parse(fs.readFileSync(DB_PATH));
   db.transactions[transactionId] = {
     target,
     amount,
@@ -123,7 +97,7 @@ app.post('/api/transfer', async (req, res) => {
     responseTimeMs: null,
     workerBucket: null
   };
-  writeDb(db);
+  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
 
   // Enviar evento de transacción a Kafka
   const kafkaMessage = {
@@ -149,7 +123,7 @@ app.post('/api/transfer', async (req, res) => {
   } catch (error) {
     db.transactions[transactionId].status = 'ERROR_PUBLICACION';
     db.transactions[transactionId].publicationError = String(error?.message || error);
-    writeDb(db);
+    fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
     console.error(' Fallo al publicar mensaje:', error);
     return res.status(503).json({
       id: transactionId,
@@ -171,77 +145,9 @@ app.post('/api/transfer', async (req, res) => {
 // Endpoint 2: Consultar estado (Sondeo por ID)
 app.get('/api/status/:id', (req, res) => {
   const { id } = req.params;
-  const db = readDb();
+  const db = JSON.parse(fs.readFileSync(DB_PATH));
   const tx = db.transactions[id] || { status: 'NO_ENCONTRADO' };
   res.json({ id, ...tx });
-});
-
-app.post('/api/register', async (req, res) => {
-  const { name, email, password } = req.body;
-
-  if (!name || !email || !password) {
-    return res.status(400).json({
-      status: 'DATOS_INCOMPLETOS',
-      message: 'Nombre, email y password son obligatorios.'
-    });
-  }
-
-  const userId = 'USR-' + Date.now();
-  const createdAt = Date.now();
-  const db = readDb();
-
-  db.users[userId] = {
-    name,
-    email,
-    status: 'PROCESANDO',
-    createdAt,
-    processedAt: null,
-    responseTimeMs: null
-  };
-  writeDb(db);
-
-  const kafkaMessage = {
-    topic: 'registro-usuarios',
-    messages: [
-      {
-        key: userId,
-        value: JSON.stringify({
-          name,
-          email,
-          status: 'PROCESANDO',
-          createdAt
-        })
-      }
-    ]
-  };
-
-  try {
-    await publishTransferMessage(kafkaMessage);
-    console.log(` Publicado en 'registro-usuarios': ${userId}`);
-  } catch (error) {
-    db.users[userId].status = 'ERROR_PUBLICACION';
-    db.users[userId].publicationError = String(error?.message || error);
-    writeDb(db);
-    console.error(' Fallo al publicar registro:', error);
-    return res.status(503).json({
-      id: userId,
-      status: 'ERROR_PUBLICACION',
-      message: 'No se pudo publicar el registro en Kafka.'
-    });
-  }
-
-  res.status(202).json({
-    id: userId,
-    status: 'PROCESANDO',
-    createdAt
-  });
-});
-
-app.get('/api/users/status/:id', (req, res) => {
-  const { id } = req.params;
-  const db = readDb();
-  const user = db.users[id] || { status: 'NO_ENCONTRADO' };
-  res.json({ id, ...user });
 });
 
 const server = app.listen(PORT, () => {
