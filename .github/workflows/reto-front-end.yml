@@ -96,7 +96,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload reto1 Allure report for GitHub Pages
-        if: ${{ always() && github.event_name != 'pull_request' }}
+        if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
         uses: actions/upload-pages-artifact@v4
         with:
           path: reto1/allure-report
@@ -118,7 +118,7 @@ jobs:
   deploy-reto1-allure-pages:
     name: Publish Reto 1 Allure Report to GitHub Pages
     needs: reto1-transferencias
-    if: ${{ always() && github.event_name != 'pull_request' }}
+    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

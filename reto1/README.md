@@ -72,5 +72,7 @@ npm run report:allure
 - Se usa `workers: 1` porque el flujo depende de Kafka y un worker asincrono.
 - El test fuerza `FAST_5` con `speedFactor: 0.1` desde Playwright para evitar que
   el escenario aleatorio del backend genere flakiness.
-- El pipeline genera `allure-results`, construye `allure-report` y lo publica en
-  GitHub Pages para consultar la evidencia en linea.
+- El pipeline genera `allure-results` y construye `allure-report` como artifact.
+- GitHub Pages se publica cuando el workflow corre en `main` o `master`, porque
+  el environment `github-pages` del repo no permite despliegues desde ramas de
+  trabajo.
