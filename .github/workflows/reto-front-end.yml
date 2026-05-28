@@ -1,0 +1,137 @@
+name: Reto Front-End Automation
+
+on:
+  push:
+    branches: [main, master, reto1-automation-front-end]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  reto1-transferencias:
+    name: Reto 1 - Transferencias con polling
+    runs-on: ubuntu-latest
+
+    env:
+      APP_DIR: Semana_3/dia-4-kafka-docker
+      TEST_DIR: reto1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            Semana_3/dia-4-kafka-docker/backend/package-lock.json
+            Semana_3/dia-4-kafka-docker/frontend/package-lock.json
+            reto1/package-lock.json
+
+      - name: Start Kafka services
+        run: docker compose -f "$APP_DIR/docker-compose.yml" up -d
+
+      - name: Install dependencies
+        run: |
+          npm ci --prefix "$APP_DIR/backend"
+          npm ci --prefix "$APP_DIR/frontend"
+          npm ci --prefix "$TEST_DIR"
+          npx --prefix "$TEST_DIR" playwright install --with-deps chromium
+
+      - name: Reset lab database
+        run: |
+          printf '{\n  "transactions": {}\n}\n' > "$APP_DIR/backend/db.json"
+
+      - name: Start backend and worker
+        run: |
+          npm --prefix "$APP_DIR/backend" run start-server > "$APP_DIR/backend/server.log" 2>&1 &
+          npm --prefix "$APP_DIR/backend" run start-worker > "$APP_DIR/backend/worker.log" 2>&1 &
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://localhost:3000/health > /dev/null; then
+              echo "Backend healthcheck OK"
+              exit 0
+            fi
+            echo "Waiting for backend... attempt $attempt"
+            sleep 2
+          done
+
+          echo "Backend did not become ready"
+          cat "$APP_DIR/backend/server.log"
+          cat "$APP_DIR/backend/worker.log"
+          exit 1
+
+      - name: Run reto1 tests
+        working-directory: reto1
+        run: npm test
+
+      - name: Generate reto1 Allure report
+        if: always()
+        working-directory: reto1
+        run: |
+          if [ -d allure-results ]; then
+            npm run report:allure
+          else
+            echo "No allure-results directory found. Skipping Allure report generation."
+            mkdir -p allure-report
+            printf '<!doctype html><html><body><h1>No Allure results generated</h1></body></html>\n' > allure-report/index.html
+          fi
+
+      - name: Upload reto1 Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reto1-playwright-report
+          path: reto1/playwright-report
+          if-no-files-found: ignore
+
+      - name: Upload reto1 Allure report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reto1-allure-report
+          path: reto1/allure-report
+          if-no-files-found: ignore
+
+      - name: Upload reto1 Allure report for GitHub Pages
+        if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: reto1/allure-report
+
+      - name: Upload reto1 service logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reto1-service-logs
+          path: |
+            Semana_3/dia-4-kafka-docker/backend/server.log
+            Semana_3/dia-4-kafka-docker/backend/worker.log
+          if-no-files-found: ignore
+
+      - name: Stop Kafka services
+        if: always()
+        run: docker compose -f "$APP_DIR/docker-compose.yml" down
+
+  deploy-reto1-allure-pages:
+    name: Publish Reto 1 Allure Report to GitHub Pages
+    needs: reto1-transferencias
+    if: ${{ always() && github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy Reto 1 Allure Report
+        id: deployment
+        uses: actions/deploy-pages@v4

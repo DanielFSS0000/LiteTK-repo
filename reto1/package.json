@@ -1,0 +1,18 @@
+{
+  "name": "reto1-transferencias-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reto 1: automatizacion front-end del flujo de transferencias con polling.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report",
+    "report:allure": "allure generate allure-results --clean -o allure-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "allure-commandline": "^2.34.1",
+    "allure-playwright": "^3.4.2",
+    "typescript": "^5.0.0"
+  }
+}
