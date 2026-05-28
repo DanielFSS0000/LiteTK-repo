@@ -1,0 +1,15 @@
+{
+  "name": "reto1-transferencias-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Reto 1: automatizacion front-end del flujo de transferencias con polling.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "typescript": "^5.0.0"
+  }
+}
