@@ -118,12 +118,6 @@ jobs:
           path: Semana_3/dia-4-kafka-docker/tests/playwright-report
           if-no-files-found: ignore
 
-      - name: Upload Allure report for GitHub Pages
-        if: ${{ always() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: Semana_3/dia-4-kafka-docker/tests/allure-report
-
       - name: Upload service logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -137,24 +131,3 @@ jobs:
       - name: Stop Docker services
         if: always()
         run: docker compose -f "$APP_DIR/docker-compose.yml" down
-
-  deploy-allure-pages:
-    name: Publish Allure Report to GitHub Pages
-    needs: qa-async-kafka
-    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Setup GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Deploy Allure Report
-        id: deployment
-        uses: actions/deploy-pages@v4
